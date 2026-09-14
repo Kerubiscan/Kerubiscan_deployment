@@ -11,6 +11,7 @@ services:
     build:
       context: ./Kerubiscan_backend
       dockerfile: Dockerfile
+    env_file: .env
     ports:
       - "9445:8000"
     logging:
@@ -53,6 +54,7 @@ services:
     build:
       context: ./Kerubiscan_backend
       dockerfile: Dockerfile
+    env_file: .env
     network_mode: "host"
     command: celery -A src.core.celery_app worker --loglevel=info
     logging:
@@ -84,6 +86,7 @@ services:
     build:
       context: ./Kerubiscan_backend
       dockerfile: Dockerfile
+    env_file: .env
     command: celery -A src.core.celery_app beat --loglevel=info
     logging:
       driver: "json-file"
@@ -215,6 +218,7 @@ services:
     build:
       context: ./Kerubiscan_frontend/kerubiscan
       dockerfile: Dockerfile
+    env_file: .env
     logging:
       driver: "json-file"
       options:
