@@ -29,8 +29,9 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - VAULT_URL=http://vault:8200
       - VAULT_TOKEN=root
-      - KEYCLOAK_SERVER_URL=http://keycloak:8080
-      - KEYCLOAK_CLIENT_SECRET=kimia-backend-secret
+      - KEYCLOAK_SERVER_URL=${KEYCLOAK_SERVER_URL:-http://keycloak:8080}
+      - KEYCLOAK_CLIENT_SECRET=${BACKEND_KEYCLOAK_CLIENT_SECRET:-kimia-backend-secret}
+      - KEYCLOAK_CLIENT_ID=${BACKEND_KEYCLOAK_CLIENT_ID:-kimia-backend}
       - TZ=Africa/Lagos
       # AI Service Configuration (ollama, gemini, or openai)
       - AI_PROVIDER=${AI_PROVIDER:-ollama}
@@ -70,8 +71,9 @@ services:
       - REDIS_URL=redis://localhost:6379/0
       - VAULT_URL=http://localhost:8200
       - VAULT_TOKEN=root
-      - KEYCLOAK_SERVER_URL=http://localhost:1990
-      - KEYCLOAK_CLIENT_SECRET=kimia-backend-secret
+      - KEYCLOAK_SERVER_URL=${KEYCLOAK_SERVER_URL:-http://localhost:1990}
+      - KEYCLOAK_CLIENT_SECRET=${BACKEND_KEYCLOAK_CLIENT_SECRET:-kimia-backend-secret}
+      - KEYCLOAK_CLIENT_ID=${BACKEND_KEYCLOAK_CLIENT_ID:-kimia-backend}
       - TZ=Africa/Lagos
     depends_on:
       - api
@@ -233,8 +235,8 @@ services:
       - KEYCLOAK_PUBLIC_URL=${KEYCLOAK_PUBLIC_URL:-http://localhost:1990}
       - KEYCLOAK_INTERNAL_URL=${KEYCLOAK_INTERNAL_URL:-http://keycloak:8080}
       - KEYCLOAK_ISSUER=${KEYCLOAK_ISSUER:-http://localhost:1990/realms/kimia}
-      - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-kerubiscan-web}
-      - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET:-kerubiscan-web-secret}
+      - KEYCLOAK_CLIENT_ID=${FRONTEND_KEYCLOAK_CLIENT_ID:-kerubiscan-web}
+      - KEYCLOAK_CLIENT_SECRET=${FRONTEND_KEYCLOAK_CLIENT_SECRET:-kerubiscan-web-secret}
       - KEYCLOAK_REALM=${KEYCLOAK_REALM:-kimia}
       - AUTH_TRUST_HOST=true
     networks:
