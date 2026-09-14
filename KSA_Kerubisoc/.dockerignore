@@ -1,0 +1,6 @@
+.git
+.vscode
+.idea
+target
+node_modules
+.next

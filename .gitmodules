@@ -1,0 +1,6 @@
+[submodule "Kerubiscan_frontend"]
+	path = Kerubiscan_frontend
+	url = https://github.com/Kerubiscan/Kerubiscan_frontend.git
+[submodule "Kerubiscan_backend"]
+	path = Kerubiscan_backend
+	url = https://github.com/Kerubiscan/Kerubiscan_backend.git
