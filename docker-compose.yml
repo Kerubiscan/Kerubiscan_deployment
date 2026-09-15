@@ -228,11 +228,8 @@ services:
       - "9443:3000"
     environment:
       - BACKEND_API_URL=${BACKEND_API_URL:-http://api:8000}
-      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:9443}
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-super-secret-key-for-kerubiscan-nextauth}
-      - KEYCLOAK_PUBLIC_URL=${KEYCLOAK_PUBLIC_URL:-http://localhost:1990}
       - KEYCLOAK_INTERNAL_URL=${KEYCLOAK_INTERNAL_URL:-http://keycloak:8080}
-      - KEYCLOAK_ISSUER=${KEYCLOAK_ISSUER:-http://localhost:1990/realms/kimia}
       - KEYCLOAK_CLIENT_ID=${FRONTEND_KEYCLOAK_CLIENT_ID:-kerubiscan-web}
       - KEYCLOAK_CLIENT_SECRET=${FRONTEND_KEYCLOAK_CLIENT_SECRET:-kerubiscan-web-secret}
       - KEYCLOAK_REALM=${KEYCLOAK_REALM:-kimia}
