@@ -56,7 +56,6 @@ services:
       context: ./Kerubiscan_backend
       dockerfile: Dockerfile
     env_file: .env
-    network_mode: "host"
     command: celery -A src.core.celery_app worker --loglevel=info
     logging:
       driver: "json-file"
@@ -229,11 +228,14 @@ services:
     environment:
       - BACKEND_API_URL=${BACKEND_API_URL:-http://api:8000}
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-super-secret-key-for-kerubiscan-nextauth}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:9443}
       - KEYCLOAK_INTERNAL_URL=${KEYCLOAK_INTERNAL_URL:-http://keycloak:8080}
+      - KEYCLOAK_PUBLIC_URL=${KEYCLOAK_PUBLIC_URL:-http://localhost:1990}
       - KEYCLOAK_CLIENT_ID=${FRONTEND_KEYCLOAK_CLIENT_ID:-kerubiscan-web}
       - KEYCLOAK_CLIENT_SECRET=${FRONTEND_KEYCLOAK_CLIENT_SECRET:-kerubiscan-web-secret}
       - KEYCLOAK_REALM=${KEYCLOAK_REALM:-kimia}
       - AUTH_TRUST_HOST=true
+      - NODE_OPTIONS=--dns-result-order=ipv4first
     networks:
       - kerubiscan-net
 
