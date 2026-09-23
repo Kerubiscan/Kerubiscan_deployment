@@ -24,31 +24,25 @@ If you already cloned without submodules, run:
 git submodule update --init --recursive
 ```
 
-### 2. Prepare Environment
-Copy the example environment file and fill in the required values:
+### 2. Auto-Detect IP & Launch
+We provide automated scripts that will detect your machine's IP address, generate the `.env` file automatically, and launch the deployment.
+
+**On Linux/macOS:**
 ```bash
-cp .env.example .env
+chmod +x install.sh
+./install.sh
 ```
 
-Open `.env` and set at minimum:
-
-| Variable | Description | Example |
-| --- | --- | --- |
-| `BACKEND_API_URL` | Public URL of the backend API (your server IP + port 9445) | `http://<YOUR_SERVER_IP>:9445` |
-| `NEXTAUTH_URL` | Public URL of the frontend (your server IP + port 9443) | `http://<YOUR_SERVER_IP>:9443` |
-| `KEYCLOAK_PUBLIC_URL` | Public URL of Keycloak (your server IP + port 1990) | `http://<YOUR_SERVER_IP>:1990` |
-| `GEMINI_API_KEY` | *(Optional)* API key to enable AI-powered vulnerability remediation | `your_key_here` |
-| `OPENVAS_HOSTNAME` | Public URL of OpenVAS for remote access (your server IP) | `<YOUR_SERVER_IP>` |
-| `OPENVAS_PASSWORD` | *(Optional)* Custom password for OpenVAS admin | `your_custom_password` |
-| `OPENVAS_SKIPSYNC` | Set to `false` in production to download vulnerability data | `false` |
-
-> **Important:** `BACKEND_API_URL` must be set to your **server's actual IP address** (not `localhost`). It is used at **build time** to configure the frontend's API proxy. If left unset, the dashboard will hang in a loading state.
-
-### 3. Build and Launch
-Launch the entire infrastructure:
-```bash
-docker compose up -d --build
+**On Windows (PowerShell):**
+```powershell
+.\install.ps1
 ```
+
+*(Optional)*: If you want to force a specific IP or just generate the `.env` file without starting Docker yet, you can use the flags:
+- `./install.sh --env-only`
+- `HOST_IP=1.2.3.4 ./install.sh`
+
+Once the script finishes, you can open `.env` and add your `GEMINI_API_KEY` if you want AI-powered remediation features, then restart the containers with `docker compose up -d`.
 
 > For a clean rebuild (recommended after pulling submodule updates):
 > ```bash
