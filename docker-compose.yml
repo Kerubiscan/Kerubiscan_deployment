@@ -205,9 +205,9 @@ services:
       - "9392:9392"
       - "9390:9390"
     environment:
-      - PUBLIC_HOSTNAME=localhost
-      - PASSWORD=admin
-      - SKIPSYNC=true
+      - PUBLIC_HOSTNAME=${OPENVAS_HOSTNAME:-localhost}
+      - PASSWORD=${OPENVAS_PASSWORD:-admin}
+      - SKIPSYNC=${OPENVAS_SKIPSYNC:-false}
     volumes:
       - openvas_data:/data
       - openvas_sock:/run/gvmd

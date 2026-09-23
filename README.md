@@ -38,6 +38,9 @@ Open `.env` and set at minimum:
 | `NEXTAUTH_URL` | Public URL of the frontend (your server IP + port 9443) | `http://<YOUR_SERVER_IP>:9443` |
 | `KEYCLOAK_PUBLIC_URL` | Public URL of Keycloak (your server IP + port 1990) | `http://<YOUR_SERVER_IP>:1990` |
 | `GEMINI_API_KEY` | *(Optional)* API key to enable AI-powered vulnerability remediation | `your_key_here` |
+| `OPENVAS_HOSTNAME` | Public URL of OpenVAS for remote access (your server IP) | `<YOUR_SERVER_IP>` |
+| `OPENVAS_PASSWORD` | *(Optional)* Custom password for OpenVAS admin | `your_custom_password` |
+| `OPENVAS_SKIPSYNC` | Set to `false` in production to download vulnerability data | `false` |
 
 > **Important:** `BACKEND_API_URL` must be set to your **server's actual IP address** (not `localhost`). It is used at **build time** to configure the frontend's API proxy. If left unset, the dashboard will hang in a loading state.
 
