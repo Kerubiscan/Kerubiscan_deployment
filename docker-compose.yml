@@ -217,6 +217,8 @@ services:
     build:
       context: ./Kerubiscan_frontend/kerubiscan
       dockerfile: Dockerfile
+      args:
+        - BACKEND_API_URL=${BACKEND_API_URL:-http://api:8000}
     env_file: .env
     logging:
       driver: "json-file"
