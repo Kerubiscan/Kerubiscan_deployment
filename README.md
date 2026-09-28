@@ -33,11 +33,6 @@ chmod +x install.sh
 ./install.sh
 ```
 
-**On Windows (PowerShell):**
-```powershell
-.\install.ps1
-```
-
 *(Optional)*: If you want to force a specific IP or just generate the `.env` file without starting Docker yet, you can use the flags:
 - `./install.sh --env-only`
 - `HOST_IP=1.2.3.4 ./install.sh`
