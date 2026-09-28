@@ -1,6 +1,6 @@
-# KerubiScan Unified Deployment
+# KVS Unified Deployment
 
-This repository contains the unified deployment architecture for the **Kimia Vulnerability Scanner (KerubiScan)**. It uses Docker Compose and Git Submodules to orchestrate the frontend, backend, Keycloak authentication, Vault, Redis, and OpenVAS scanning engine in a single command.
+This repository contains the unified deployment architecture for the **Kerubi Vulnerability Scanner (KVS)**. It uses Docker Compose and Git Submodules to orchestrate the frontend, backend, Keycloak authentication, Vault, Redis, and OpenVAS scanning engine in a single command.
 
 ---
 
@@ -15,8 +15,8 @@ This repository contains the unified deployment architecture for the **Kimia Vul
 ### 1. Clone the Repository
 You **must** use the `--recurse-submodules` flag to pull down the frontend and backend code simultaneously:
 ```bash
-git clone --recurse-submodules https://github.com/Kerubiscan/Kerubiscan_deployment.git
-cd Kerubiscan_deployment
+git clone --recurse-submodules https://github.com/KVS/KVS_deployment.git
+cd KVS_deployment
 ```
 
 If you already cloned without submodules, run:
@@ -60,7 +60,7 @@ Once the containers are healthy, you can access the platform using your server's
 
 | Service | Address |
 | --- | --- |
-| **Kerubiscan Portal (Frontend)** | `http://<YOUR_IP>:9443` |
+| **KVS Portal (Frontend)** | `http://<YOUR_IP>:9443` |
 | **Backend API (Swagger Docs)** | `http://<YOUR_IP>:9445/docs` |
 | **Keycloak Management** | `http://<YOUR_IP>:1990` |
 | **OpenVAS Greenbone UI** | `http://<YOUR_IP>:9392` |
@@ -72,7 +72,7 @@ Once the containers are healthy, you can access the platform using your server's
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              kerubiscan-net (bridge)             │
+│              KVS-net (bridge)             │
 │                                                  │
 │  frontend:3000  ──►  api:8000  ──►  db:5432     │
 │       │               │             redis:6379   │

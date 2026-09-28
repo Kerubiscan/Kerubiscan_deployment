@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# install.sh - Generates the .env for Kerubiscan with the detected host IP
+# install.sh - Generates the .env for KVS with the detected host IP
 # and automatically starts the deployment.
 #
 # Usage:
