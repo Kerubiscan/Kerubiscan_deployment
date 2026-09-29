@@ -1,15 +1,15 @@
 version: '3.8'
 
 networks:
-  KVS-net:
-    name: KVS-net
+  kerubiscan-net:
+    name: kerubiscan-net
     driver: bridge
 
 services:
   api:
     restart: unless-stopped
     build:
-      context: ./KVS_backend
+      context: ./Kerubiscan_backend
       dockerfile: Dockerfile
     env_file: .env
     ports:
@@ -20,9 +20,9 @@ services:
         max-size: "100k"
         max-file: "1"
     volumes:
-      - ./KVS_backend/src:/app/src
-      - ./KVS_backend/alembic:/app/alembic
-      - ./KVS_backend/alembic.ini:/app/alembic.ini
+      - ./Kerubiscan_backend/src:/app/src
+      - ./Kerubiscan_backend/alembic:/app/alembic
+      - ./Kerubiscan_backend/alembic.ini:/app/alembic.ini
       - openvas_sock:/run/gvmd
     environment:
       - POSTGRES_URL=postgresql://kimia:kimia_password@db:5432/kimia_db
@@ -48,12 +48,11 @@ services:
       - "host.docker.internal:host-gateway"
     networks:
       - default
-      - KVS-net
-
+      - kerubiscan-net
   celery-worker:
     restart: unless-stopped
     build:
-      context: ./KVS_backend
+      context: ./Kerubiscan_backend
       dockerfile: Dockerfile
     env_file: .env
     command: celery -A src.core.celery_app worker --loglevel=info
@@ -63,7 +62,7 @@ services:
         max-size: "100k"
         max-file: "1"
     volumes:
-      - ./KVS_backend/src:/app/src
+      - ./Kerubiscan_backend/src:/app/src
       - openvas_sock:/run/gvmd
     environment:
       - POSTGRES_URL=postgresql://kimia:kimia_password@db:5432/kimia_db
@@ -85,7 +84,7 @@ services:
   celery-beat:
     restart: unless-stopped
     build:
-      context: ./KVS_backend
+      context: ./Kerubiscan_backend
       dockerfile: Dockerfile
     env_file: .env
     command: celery -A src.core.celery_app beat --loglevel=info
@@ -95,7 +94,7 @@ services:
         max-size: "100k"
         max-file: "1"
     volumes:
-      - ./KVS_backend/src:/app/src
+      - ./Kerubiscan_backend/src:/app/src
     environment:
       - POSTGRES_URL=postgresql://kimia:kimia_password@db:5432/kimia_db
       - REDIS_URL=redis://redis:6379/0
@@ -169,13 +168,13 @@ services:
     ports:
       - "1990:8080"
     volumes:
-      - ./KVS_backend/realm-export.json:/opt/keycloak/data/import/realm-export.json
-      - ./KVS_frontend/keycloak-theme/dist_keycloak:/opt/keycloak/providers
+      - ./Kerubiscan_backend/realm-export.json:/opt/keycloak/data/import/realm-export.json
+      - ./Kerubiscan_frontend/keycloak-theme/dist_keycloak:/opt/keycloak/providers
     depends_on:
       - db
     networks:
       - default
-      - KVS-net
+      - kerubiscan-net
 
   vault:
     restart: unless-stopped
@@ -215,7 +214,7 @@ services:
   frontend:
     restart: unless-stopped
     build:
-      context: ./KVS_frontend/KVS
+      context: ./Kerubiscan_frontend/kerubiscan
       dockerfile: Dockerfile
       args:
         - BACKEND_API_URL=${BACKEND_API_URL:-http://api:8000}
@@ -229,17 +228,17 @@ services:
       - "9443:3000"
     environment:
       - BACKEND_API_URL=${BACKEND_API_URL:-http://api:8000}
-      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-super-secret-key-for-KVS-nextauth}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-super-secret-key-for-kerubiscan-nextauth}
       - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:9443}
       - KEYCLOAK_INTERNAL_URL=${KEYCLOAK_INTERNAL_URL:-http://keycloak:8080}
       - KEYCLOAK_PUBLIC_URL=${KEYCLOAK_PUBLIC_URL:-http://localhost:1990}
-      - KEYCLOAK_CLIENT_ID=${FRONTEND_KEYCLOAK_CLIENT_ID:-KVS-web}
-      - KEYCLOAK_CLIENT_SECRET=${FRONTEND_KEYCLOAK_CLIENT_SECRET:-KVS-web-secret}
+      - KEYCLOAK_CLIENT_ID=${FRONTEND_KEYCLOAK_CLIENT_ID:-kerubiscan-web}
+      - KEYCLOAK_CLIENT_SECRET=${FRONTEND_KEYCLOAK_CLIENT_SECRET:-kerubiscan-web-secret}
       - KEYCLOAK_REALM=${KEYCLOAK_REALM:-kimia}
       - AUTH_TRUST_HOST=true
       - NODE_OPTIONS=--dns-result-order=ipv4first
     networks:
-      - KVS-net
+      - kerubiscan-net
 
 volumes:
   postgres_data:
