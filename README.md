@@ -130,3 +130,15 @@ docker compose build --no-cache keycloak
 ```bash
 git submodule update --remote --merge
 ```
+
+### Unable to access site
+```bash
+docker compose down  
+docker compose up -d --build
+
+#or
+
+docker compose down -v
+docker compose up -d --build
+
+```
