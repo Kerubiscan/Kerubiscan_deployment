@@ -15,8 +15,8 @@ This repository contains the unified deployment architecture for the **Kerubi Vu
 ### 1. Clone the Repository
 You **must** use the `--recurse-submodules` flag to pull down the frontend and backend code simultaneously:
 ```bash
-git clone --recurse-submodules https://github.com/KVS/KVS_deployment.git
-cd KVS_deployment
+git clone --recurse-submodules https://github.com/Kerubiscan/Kerubiscan_deployment.git
+cd Kerubiscan_deployment
 ```
 
 If you already cloned without submodules, run:
