@@ -55,6 +55,28 @@ docker compose up -d --build
 
 ---
 
+## 🎯 How to Run Scans Properly
+
+KVS uses a **Two-Phase Scanning Architecture** to ensure fast, accurate, and targeted vulnerability assessments:
+
+### Phase 1: Asset Discovery (Nmap)
+When you start a scan on a target IP or domain, KVS first runs a comprehensive Nmap discovery scan (`-sV -O -p-`). 
+- It maps out all open ports, running services, MAC addresses, and the Operating System.
+- **Auto-Creation:** If the target is not already in your database, KVS will dynamically create a new Asset for it on the fly.
+- **Real-time Updates:** The exact moment Phase 1 finishes (usually 10-20 minutes depending on the network), your dashboard's **Assets** page will update. You can click the **Eye icon** to immediately view the open ports, OS, and services—even before the vulnerability scan finishes!
+
+### Phase 2: Targeted Vulnerability Scanning
+Once Phase 1 finishes, it passes the exact list of open ports directly to the vulnerability scanners (Nuclei, ZAP, or Nmap).
+- **Nuclei & Nmap:** Instead of blindly attacking all 65,535 ports, these scanners will *only* attack the specific ports that Phase 1 found open. This acts as a massive speed filter.
+- **OWASP ZAP:** If the target is online, ZAP will automatically spider and attack the web services (HTTP/HTTPS) on standard ports. If no open ports are found on the host at all, Phase 2 is skipped entirely to save time.
+
+### Best Practices:
+- Always give Phase 1 enough time to finish. It uses a stealthy, comprehensive sweep, so it may take time on heavily firewalled targets.
+- Use the **Assets** tab to monitor the discovery data as soon as Phase 1 completes.
+- For purely web-based targets, ensure the domain name is reachable, as ZAP relies on DNS resolution.
+
+---
+
 ## 🌐 Services Access
 Once the containers are healthy, you can access the platform using your server's IP address:
 
