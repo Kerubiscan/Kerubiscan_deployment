@@ -142,3 +142,16 @@ docker compose down -v
 docker compose up -d --build
 
 ```
+
+### Dashboard fails to load or login fails (Database Migrations)
+If the dashboard refuses to load or you see `client_not_found` errors in the Keycloak logs, you likely need to apply your backend database migrations. Run this command to apply them inside the API container:
+```bash
+docker compose exec api alembic upgrade head
+```
+*(Note: If you wiped your database with `docker compose down -v`, you will always need to re-run this migration).*
+
+### Keycloak "Client Not Found"
+If migrations are up to date but you still cannot log in, ensure Keycloak imported the `realm-export.json` correctly. If Keycloak skipped the import because the realm already exists, you can force a clean import:
+1. Run `docker compose down -v` to wipe the old Keycloak database (**WARNING: Wipes all backend scan data too!**)
+2. Run `docker compose up -d` to restart everything fresh and force Keycloak to re-import the realm.
+3. Re-run your backend database migrations using the `alembic upgrade head` command described above.
