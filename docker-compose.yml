@@ -55,12 +55,13 @@ services:
       context: ./Kerubiscan_backend
       dockerfile: Dockerfile
     env_file: .env
-    command: celery -A src.core.celery_app worker --loglevel=info
+    # Long running scans only (queue "scans"). Concurrency = number of scans run in parallel.
+    command: celery -A src.core.celery_app worker -Q scans --concurrency=${SCAN_CONCURRENCY:-2} --loglevel=info -n scans@%h
     logging:
       driver: "json-file"
       options:
-        max-size: "100k"
-        max-file: "1"
+        max-size: "20m"
+        max-file: "5"
     volumes:
       - ./Kerubiscan_backend/src:/app/src
       - openvas_sock:/run/gvmd
@@ -80,6 +81,37 @@ services:
       - openvas
     cap_add:
       - NET_RAW
+
+  celery-worker-default:
+    restart: unless-stopped
+    build:
+      context: ./Kerubiscan_backend
+      dockerfile: Dockerfile
+    env_file: .env
+    # Short tasks: scheduling, OpenVAS polling and report parsing, AI, scanner updates.
+    command: celery -A src.core.celery_app worker -Q celery --concurrency=4 --loglevel=info -n default@%h
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+    volumes:
+      - ./Kerubiscan_backend/src:/app/src
+      - openvas_sock:/run/gvmd
+    environment:
+      - POSTGRES_URL=postgresql://kimia:kimia_password@db:5432/kimia_db
+      - REDIS_URL=redis://redis:6379/0
+      - VAULT_URL=http://vault:8200
+      - VAULT_TOKEN=root
+      - KEYCLOAK_SERVER_URL=${KEYCLOAK_SERVER_URL:-http://keycloak:8080}
+      - KEYCLOAK_CLIENT_SECRET=${BACKEND_KEYCLOAK_CLIENT_SECRET:-kimia-backend-secret}
+      - KEYCLOAK_CLIENT_ID=${BACKEND_KEYCLOAK_CLIENT_ID:-kimia-backend}
+      - TZ=Africa/Lagos
+    depends_on:
+      - api
+      - db
+      - redis
+      - openvas
 
   celery-beat:
     restart: unless-stopped
