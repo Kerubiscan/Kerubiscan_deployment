@@ -2,7 +2,7 @@
 
 - **Branche** : `fix/fiabilite-scans` dans `Kerubiscan_deployment`, `Kerubiscan_backend` et `Kerubiscan_frontend`, basée sur `origin/main` du 4 octobre 2026 (backend `5bae702`, frontend `c8b217b`). Les apports de `5bae702` sont réintégrés dans le code réécrit (commit « Réintègre les apports de 5bae702 »).
 - **Base** : constats de `docs/ANALYSE_STATIQUE.md` (les numéros C1, C2… y renvoient).
-- **Tests** : 52 tests automatisés côté backend (`Kerubiscan_backend/tests`), tous au vert. Les scanners sont simulés : **aucun scan réel n'a été exécuté**. La validation sur un serveur reste nécessaire (voir la section 4).
+- **Tests** : 79 tests automatisés côté backend (`Kerubiscan_backend/tests`), tous au vert, dont une sortie réelle de Nmap. Nmap 7.80 et Nuclei 3.11.1 ont aussi été exécutés pour de vrai sur un poste Windows, contre un serveur de test local. La validation sur le serveur Linux reste nécessaire (voir la section 4).
 
 ---
 
@@ -91,7 +91,7 @@ docker compose build api celery-worker celery-worker-default celery-beat fronten
 docker compose up -d
 
 # 4. Vérifier la migration
-docker compose exec api alembic current          # doit afficher b7e4c2a9d1f0 (head)
+docker compose exec api alembic current          # doit afficher c5d8e1f2a3b4 (head)
 docker compose exec db psql -U kimia -d kimia_db -c "SELECT unnest(enum_range(NULL::scannerengine));"
 ```
 
@@ -119,6 +119,24 @@ Uniquement sur des cibles que vous êtes autorisés à scanner :
 3. **Un scan Nmap** sur un serveur de test connu : les CVE doivent apparaître avec leur CVSS et une sévérité High ou Critical quand c'est le cas.
 4. **Un scan avec identifiant SSH ou HTTP** : le log doit afficher `authenticated=yes (SSH)`. Si `credential ... is empty in Vault` apparaît, recréez l'identifiant (Vault en mode dev perd ses secrets à chaque redémarrage : voir S3).
 5. **Un compte Reader** ne doit plus pouvoir lancer de scan (erreur 403).
+
+## 4 bis. Scans bloqués : chien de garde
+
+Ce cas a été constaté sur le serveur avec l'ancienne version : une cible OpenVAS « en cours » à 0 % pendant des heures, et des tâches OpenVAS lancées en cachette par l'ancienne bascule automatique.
+
+| Situation | Ce que fait le chien de garde (toutes les 10 min) |
+|---|---|
+| Suivi OpenVAS perdu (worker redémarré, déploiement…) | Retrouve la tâche OpenVAS et **relance son suivi**, ou importe son rapport si elle est finie. Introuvable : « Délai dépassé » avec la raison |
+| Cible Nmap, Nuclei ou ZAP sans activité depuis plus de 25 h | « Délai dépassé », avec la raison |
+| Cible jamais démarrée depuis plus de 26 h | « Échec » : « n'a jamais démarré » |
+| Tâche OpenVAS orpheline (scan supprimé, cible terminée, ou tâche de l'ancienne bascule automatique) | **Arrêtée**, pour libérer OpenVAS |
+
+**Au déploiement**, les scans bloqués de l'ancienne version sont pris en charge **automatiquement** dans les 10 minutes qui suivent : les tâches OpenVAS des cibles ABANDONED sont arrêtées, et le suivi de la cible OpenVAS en attente est relancé. Il n'y a pas de requête SQL à exécuter à la main. Suivi :
+```bash
+docker compose logs -f celery-worker-default | grep -i watchdog
+```
+
+Le détail d'un scan affiche maintenant, pour chaque cible, l'état **« En file d'attente »** (OpenVAS), la **raison** d'un échec et la **dernière activité**.
 
 ## 5. Ce qui reste à faire (non traité ici)
 
