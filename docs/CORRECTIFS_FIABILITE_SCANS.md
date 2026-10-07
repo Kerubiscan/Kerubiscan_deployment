@@ -2,7 +2,7 @@
 
 - **Branche** : `fix/fiabilite-scans` dans `Kerubiscan_deployment`, `Kerubiscan_backend` et `Kerubiscan_frontend`, basée sur `origin/main` du 4 octobre 2026 (backend `5bae702`, frontend `c8b217b`). Les apports de `5bae702` sont réintégrés dans le code réécrit (commit « Réintègre les apports de 5bae702 »).
 - **Base** : constats de `docs/ANALYSE_STATIQUE.md` (les numéros C1, C2… y renvoient).
-- **Tests** : 42 tests automatisés côté backend (`Kerubiscan_backend/tests`), tous au vert. Les scanners sont simulés : **aucun scan réel n'a été exécuté**. La validation sur un serveur reste nécessaire (voir la section 4).
+- **Tests** : 52 tests automatisés côté backend (`Kerubiscan_backend/tests`), tous au vert. Les scanners sont simulés : **aucun scan réel n'a été exécuté**. La validation sur un serveur reste nécessaire (voir la section 4).
 
 ---
 
@@ -64,6 +64,10 @@ Un scan dont **aucune** cible n'a pu être scannée est maintenant en **FAILED**
 | **C22** Rapports vides pour un domaine ; rapport PDF couvrant d'autres sociétés | Assets d'un scan retrouvés par domaine, par IP ou par réseau, limités à la société. |
 | **C24** Enum `OWASP_ZAP` absent ; Nessus | Migration `b7e4c2a9d1f0` : enum recréé sans NESSUS et avec OWASP_ZAP. Anciens scans Nessus masqués et plannings Nessus mis en pause. |
 | **S1, S2** Routes ouvertes ; un Reader peut lancer des scans | Toutes les routes exigent une authentification (vérifié par un test automatique). Permissions `SCAN_READ`, `SCAN_EXECUTE` et `SCAN_DELETE` : **le rôle Reader ne peut plus lancer de scan**. Changer le statut d'une vulnérabilité exige `ASSET_WRITE`. Plus de traces d'erreur renvoyées au client. |
+| Rapport PDF différent du HTML | **Le PDF est l'impression du rapport HTML** par Chromium headless : même mise en page, même contenu (détails dépliés). L'ancien PDF ReportLab sert de secours si Chromium manque (erreur dans les logs). |
+| XSS dans les rapports | Échappement HTML activé : le contenu venant des cibles scannées (preuves ZAP, titres de pages) ne peut plus injecter de script dans le rapport. Rendu PDF sans JavaScript ni réseau. |
+| Rapports par asset en erreur 500 | `v.created_at` inexistant remplacé par la date de dernière détection. |
+| Rôle Keycloak « System Administrator » | Reconnu (le code attendait « Systems Administrator ») : ces comptes n'avaient aucune permission. |
 | Fiabilité de Celery | `acks_late` : un scan interrompu par l'arrêt d'un worker est relancé. Délai de visibilité Redis de 26 h (sinon un scan long était lancé deux fois). Préchargement à 1. |
 
 ---
@@ -90,6 +94,8 @@ docker compose up -d
 docker compose exec api alembic current          # doit afficher b7e4c2a9d1f0 (head)
 docker compose exec db psql -U kimia -d kimia_db -c "SELECT unnest(enum_range(NULL::scannerengine));"
 ```
+
+**Image Docker** : elle inclut maintenant Chromium pour le rendu PDF (environ +300 Mo, première construction plus longue). Après le déploiement, testez le bouton « Download PDF » de la page Rapports : si le PDF n'a pas le design du HTML, cherchez `falling back to the legacy PDF layout` dans `docker compose logs api`.
 
 **Nouveau service** : `celery-worker-default` (tâches courtes). `celery-worker` ne traite plus que les scans (file `scans`). Le nombre de scans en parallèle se règle avec `SCAN_CONCURRENCY` dans `.env` (2 par défaut). Comptez environ 1,5 Go de RAM par scan ZAP.
 
