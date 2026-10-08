@@ -176,3 +176,37 @@ garde-fou de périmètre, feed OpenVAS, image figée, script de reprise, tests. 
 - **Durée de conservation** : `AUDIT_RETENTION_DAYS` (90) et `RAW_OUTPUT_RETENTION_DAYS` (30) par défaut.
 - **Concurrence** : `SCAN_CONCURRENCY=1` par défaut (sûr). À augmenter selon la RAM (≈ 1,5–3 Go par scan).
 - **Épinglage des versions** : confirmer `NUCLEI_VERSION`/`VULNERS_REF` et ajouter les checksums.
+
+---
+
+## 7. Audit du lot (relecture critique)
+
+Relecture du code livré, à la recherche d'anomalies pouvant **empêcher un scan de fonctionner**.
+
+### Anomalies bloquantes trouvées et corrigées (commit « Audit : … »)
+- **A1 — Vérification du feed OpenVAS fermée** : `check_feeds` renvoyait « feed absent » dès que la
+  structure du feed différait de l'attendu, ce qui aurait fait échouer **tous** les scans OpenVAS.
+  Rendue prudente (fail-open) : ne bloque que sur un feed NVT lu comme absent/en synchronisation.
+- **A2 — ZAP authentifié** : `replacer/addRule` sans `matchRegex` (paramètre requis) aurait fait
+  échouer tout scan ZAP avec identifiants. Corrigé, avec dégradation en scan non authentifié si l'API
+  refuse, au lieu d'un échec total.
+
+### Limites connues, non bloquantes (à valider sur le serveur)
+- **Arrêt d'un scan moteur (Nmap/Nuclei/ZAP)** : la tâche Celery est révoquée (pas de réexécution) et
+  la cible passe INTERRUPTED. L'arrêt via SIGTERM laisse en principe la tâche tuer son processus
+  scanner (groupe de processus), mais c'est du « meilleur effort » : à confirmer sous charge réelle.
+  L'arrêt d'un scan OpenVAS est propre (tâche GVM arrêtée).
+- **Nuclei authentifié** : l'en-tête est passé par un fichier de config (`header:`). Si la clé diffère
+  selon la version de Nuclei, le scan se dégrade en non authentifié (visible dans les logs), sans
+  bloquer les scans non authentifiés. À confirmer avec la version figée.
+- **API ZAP (durées max)** : `setOptionMaxDuration` / `setOptionMaxScanDurationInMins` — noms d'API à
+  confirmer sur la version 2.17 de ZAP (sinon le scan ZAP échoue, de façon visible).
+- **Dockerfile** : si `NUCLEI_VERSION` ou `VULNERS_REF` sont invalides, le **build échoue** (volontaire,
+  plus de `|| true`). Confirmer les refs et ajouter les checksums avant la production.
+
+### Vérifié sans anomalie
+- Garde-fou de routage : pas de boucle (seul `default@` est redirigé, vers la file `scans`).
+- Révocation d'un scan arrêté : `revoke` empêche la réexécution même en cas de redelivery `acks_late`.
+- Suivi OpenVAS : compteur d'échecs de connexion séparé des relances de polling (pas d'arrêt prématuré
+  d'un scan sain).
+- Mises à jour d'état sous verrou de ligne (pas d'écrasement entre deux cibles simultanées).
