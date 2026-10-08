@@ -149,7 +149,7 @@ garde-fou de périmètre, feed OpenVAS, image figée, script de reprise, tests. 
 | R10 arrêter un scan | **corrigé** | `PUT /scans/{id}/stop` + `stop_scan_task` ; test_stop_scan_revokes_tasks_and_stops_openvas |
 | R11 feed + figée + limite de tâches | **corrigé** (feed, figée) ; *atténué* (limite) | `check_feeds` ; détection de figée (`OPENVAS_STALL_HOURS`). **Limite de tâches simultanées** : non implémentée, mais `SCAN_CONCURRENCY=1` + suppression de la bascule cachée bornent déjà le nombre de tâches GVM. |
 | R12 logs | **corrigé** | rotation 20 Mo × 5 uniforme ; `scan_id` ajouté aux lignes OpenVAS |
-| R13 image | **corrigé** (nuclei figé, templates vérifiés, vulscan retiré) ; *à finaliser* | `Dockerfile`. **À faire avant la production** : épingler `NUCLEI_SHA256` et `VULNERS_REF` sur un commit + checksum. Le build échoue désormais si un ref est invalide. |
+| R13 image | **corrigé** (nuclei figé, templates vérifiés, vulscan retiré) ; *à finaliser* | `Dockerfile`. **À faire avant la production** : épingler `NUCLEI_SHA256` (checksum du binaire). Templates Nuclei figés (`NUCLEI_TEMPLATES_VERSION`) ; `vulners.nse` = celui du paquet nmap de l'image (la v2 amont change le format de sortie). Le build échoue si un ref est invalide. |
 | R14 code monté | **corrigé** | montages déplacés dans `docker-compose.override.yml` |
 | R15 ressources | **corrigé** | `SCAN_CONCURRENCY=1` ; `mem_limit` worker/openvas |
 | R16 (4 points) | **corrigé** | limite douce 23 h, reprise, asset manuel, ZAP redirigé (commit `c356135`) |
@@ -175,7 +175,7 @@ garde-fou de périmètre, feed OpenVAS, image figée, script de reprise, tests. 
   le rendre désactivable par policy pour les cibles sensibles.
 - **Durée de conservation** : `AUDIT_RETENTION_DAYS` (90) et `RAW_OUTPUT_RETENTION_DAYS` (30) par défaut.
 - **Concurrence** : `SCAN_CONCURRENCY=1` par défaut (sûr). À augmenter selon la RAM (≈ 1,5–3 Go par scan).
-- **Épinglage des versions** : confirmer `NUCLEI_VERSION`/`VULNERS_REF` et ajouter les checksums.
+- **Épinglage des versions** : confirmer `NUCLEI_VERSION`/`NUCLEI_TEMPLATES_VERSION` et ajouter les checksums.
 
 ---
 
@@ -201,7 +201,7 @@ Relecture du code livré, à la recherche d'anomalies pouvant **empêcher un sca
   bloquer les scans non authentifiés. À confirmer avec la version figée.
 - **API ZAP (durées max)** : `setOptionMaxDuration` / `setOptionMaxScanDurationInMins` — noms d'API à
   confirmer sur la version 2.17 de ZAP (sinon le scan ZAP échoue, de façon visible).
-- **Dockerfile** : si `NUCLEI_VERSION` ou `VULNERS_REF` sont invalides, le **build échoue** (volontaire,
+- **Dockerfile** : si `NUCLEI_VERSION` ou `NUCLEI_TEMPLATES_VERSION` sont invalides, ou si le `vulners.nse` du paquet nmap n'a pas le format attendu, le **build échoue** (volontaire,
   plus de `|| true`). Confirmer les refs et ajouter les checksums avant la production.
 
 ### Vérifié sans anomalie
