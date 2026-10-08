@@ -1,0 +1,52 @@
+# Isolated vulnerability lab for end-to-end scanner tests.
+#
+# SAFETY:
+#  - The targets sit on an `internal: true` network: no Internet, and NO `ports:` published on the
+#    host. They are deliberately vulnerable and must never be reachable from the network.
+#  - The scan worker (kerubiscan_deployment-celery-worker-1) is attached to this lab network in
+#    ADDITION to its own, so it can reach the targets while keeping its Internet access (needed by
+#    vulners.nse and Nuclei templates).
+#
+# USAGE (on a test host only):
+#   # 1. start the lab, attaching the worker to lab-net:
+#   docker compose -f lab/docker-compose.lab.yml up -d
+#   docker network connect kerubiscan_lab-net <project>-celery-worker-1
+#   # 2. run the scans against app.lab.internal / the lab IPs (perimeter: SCAN_ALLOWED_TARGETS)
+#   # 3. tear down:
+#   docker network disconnect kerubiscan_lab-net <project>-celery-worker-1
+#   docker compose -f lab/docker-compose.lab.yml down
+#
+# Pin images by digest (sha256:...) before relying on this lab for a release (see REVUE_SCANNER.md).
+
+networks:
+  lab-net:
+    name: kerubiscan_lab-net
+    internal: true
+
+services:
+  # Apache httpd 2.4.49 — really vulnerable to CVE-2021-41773 (path traversal / RCE)
+  apache-vuln:
+    image: vulhub/httpd:2.4.49
+    networks:
+      lab-net:
+        aliases:
+          - app.lab.internal      # domain path: scan "app.lab.internal" instead of the IP
+    restart: unless-stopped
+
+  # OWASP Juice Shop — modern web app, many Medium+ findings, no auth to configure
+  juice-shop:
+    image: bkimminich/juice-shop:v17.1.1
+    networks:
+      - lab-net
+    restart: unless-stopped
+
+  # SSH server with a test account, for the authenticated-scan path
+  ssh-target:
+    image: linuxserver/openssh-server:version-9.7_p1-r4
+    environment:
+      - USER_NAME=labuser
+      - USER_PASSWORD=labpass123
+      - PASSWORD_ACCESS=true
+    networks:
+      - lab-net
+    restart: unless-stopped
