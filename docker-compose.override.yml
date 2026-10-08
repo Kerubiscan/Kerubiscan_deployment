@@ -1,0 +1,23 @@
+# Development overrides — DO NOT use in test/recette or production.
+#
+# docker compose automatically merges docker-compose.override.yml on top of docker-compose.yml.
+# It mounts the source code live so changes are picked up without rebuilding. In production the
+# image's own COPYed code must run instead (R14), so this file must be absent there.
+#
+# Usage in production/recette: `docker compose -f docker-compose.yml up -d` (ignores this override),
+# or simply do not deploy this file.
+services:
+  api:
+    volumes:
+      - ./Kerubiscan_backend/src:/app/src
+  celery-worker:
+    volumes:
+      - ./Kerubiscan_backend/src:/app/src
+      - openvas_sock:/run/gvmd
+  celery-worker-default:
+    volumes:
+      - ./Kerubiscan_backend/src:/app/src
+      - openvas_sock:/run/gvmd
+  celery-beat:
+    volumes:
+      - ./Kerubiscan_backend/src:/app/src

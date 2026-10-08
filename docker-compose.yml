@@ -17,10 +17,9 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "100k"
-        max-file: "1"
+        max-size: "20m"
+        max-file: "5"
     volumes:
-      - ./Kerubiscan_backend/src:/app/src
       - ./Kerubiscan_backend/alembic:/app/alembic
       - ./Kerubiscan_backend/alembic.ini:/app/alembic.ini
       - openvas_sock:/run/gvmd
@@ -51,19 +50,19 @@ services:
       - kerubiscan-net
   celery-worker:
     restart: unless-stopped
+    mem_limit: 3g
     build:
       context: ./Kerubiscan_backend
       dockerfile: Dockerfile
     env_file: .env
     # Long running scans only (queue "scans"). Concurrency = number of scans run in parallel.
-    command: celery -A src.core.celery_app worker -Q scans --concurrency=${SCAN_CONCURRENCY:-2} --loglevel=info -n scans@%h
+    command: celery -A src.core.celery_app worker -Q scans --concurrency=${SCAN_CONCURRENCY:-1} --loglevel=info -n scans@%h
     logging:
       driver: "json-file"
       options:
         max-size: "20m"
         max-file: "5"
     volumes:
-      - ./Kerubiscan_backend/src:/app/src
       - openvas_sock:/run/gvmd
     environment:
       - POSTGRES_URL=postgresql://kimia:kimia_password@db:5432/kimia_db
@@ -84,6 +83,7 @@ services:
 
   celery-worker-default:
     restart: unless-stopped
+    mem_limit: 1g
     build:
       context: ./Kerubiscan_backend
       dockerfile: Dockerfile
@@ -96,7 +96,6 @@ services:
         max-size: "20m"
         max-file: "5"
     volumes:
-      - ./Kerubiscan_backend/src:/app/src
       - openvas_sock:/run/gvmd
     environment:
       - POSTGRES_URL=postgresql://kimia:kimia_password@db:5432/kimia_db
@@ -123,10 +122,8 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "100k"
-        max-file: "1"
-    volumes:
-      - ./Kerubiscan_backend/src:/app/src
+        max-size: "20m"
+        max-file: "5"
     environment:
       - POSTGRES_URL=postgresql://kimia:kimia_password@db:5432/kimia_db
       - REDIS_URL=redis://redis:6379/0
@@ -143,8 +140,8 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "100k"
-        max-file: "1"
+        max-size: "20m"
+        max-file: "5"
     environment:
       POSTGRES_USER: kimia
       POSTGRES_PASSWORD: kimia_password
@@ -160,8 +157,8 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "100k"
-        max-file: "1"
+        max-size: "20m"
+        max-file: "5"
     ports:
       - "6379:6379"
 
@@ -171,8 +168,8 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "100k"
-        max-file: "1"
+        max-size: "20m"
+        max-file: "5"
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -184,8 +181,8 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "100k"
-        max-file: "1"
+        max-size: "20m"
+        max-file: "5"
     environment:
       KC_DB: postgres
       KC_DB_URL_HOST: db
@@ -214,8 +211,8 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "100k"
-        max-file: "1"
+        max-size: "20m"
+        max-file: "5"
     environment:
       VAULT_DEV_ROOT_TOKEN_ID: "root"
       VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
@@ -226,12 +223,13 @@ services:
 
   openvas:
     restart: unless-stopped
+    mem_limit: 4g
     image: immauss/openvas:latest
     logging:
       driver: "json-file"
       options:
-        max-size: "100k"
-        max-file: "1"
+        max-size: "20m"
+        max-file: "5"
     ports:
       - "9392:9392"
       - "9390:9390"
@@ -254,8 +252,8 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "100k"
-        max-file: "1"
+        max-size: "20m"
+        max-file: "5"
     ports:
       - "9443:3000"
     environment:
