@@ -2,7 +2,7 @@
 
 - **Branche** : `fix/fiabilite-scans` dans `Kerubiscan_deployment`, `Kerubiscan_backend` et `Kerubiscan_frontend`, basée sur `origin/main` du 4 octobre 2026 (backend `5bae702`, frontend `c8b217b`). Les apports de `5bae702` sont réintégrés dans le code réécrit (commit « Réintègre les apports de 5bae702 »).
 - **Base** : constats de `docs/ANALYSE_STATIQUE.md` (les numéros C1, C2… y renvoient).
-- **Tests** : 79 tests automatisés côté backend (`Kerubiscan_backend/tests`), tous au vert, dont une sortie réelle de Nmap. Nmap 7.80 et Nuclei 3.11.1 ont aussi été exécutés pour de vrai sur un poste Windows, contre un serveur de test local. La validation sur le serveur Linux reste nécessaire (voir la section 4).
+- **Tests** : 89 tests automatisés côté backend (`Kerubiscan_backend/tests`), tous au vert, dont une sortie réelle de Nmap. Nmap 7.80 et Nuclei 3.11.1 ont aussi été exécutés pour de vrai sur un poste Windows, contre un serveur de test local. La validation sur le serveur Linux reste nécessaire (voir la section 4).
 
 ---
 
@@ -72,34 +72,67 @@ Un scan dont **aucune** cible n'a pu être scannée est maintenant en **FAILED**
 
 ---
 
-## 3. Déploiement
+## 3. Déploiement et retour arrière
 
-> Faites-le d'abord sur un serveur de recette.
+> Faites-le d'abord sur un serveur de recette. **Important (R14)** : en recette et en production,
+> déployez avec `-f docker-compose.yml` pour **ignorer** `docker-compose.override.yml` (qui monte le
+> code source en direct et ne doit servir qu'en développement).
 
 ```bash
-# 1. Récupérer les branches (dépôt de déploiement et sous-modules)
+cd Kerubiscan_deployment
+
+# 0. Noter la version actuelle pour le retour arrière
+git rev-parse --short HEAD && git -C Kerubiscan_backend rev-parse --short HEAD
+
+# 1. Sauvegarder la base AVANT tout changement (la migration n'est pas réversible sans elle)
+docker compose -f docker-compose.yml exec db pg_dump -U kimia kimia_db > sauvegarde_$(date +%F_%H%M).sql
+ls -lh sauvegarde_*.sql            # ne doit pas être vide
+
+# 2. Arrêter ou laisser se terminer les scans en cours (sinon le changement de code les perturbe)
+docker compose -f docker-compose.yml stop celery-worker celery-worker-default
+
+# 3. Récupérer les branches (dépôt de déploiement et sous-modules)
 git fetch && git checkout fix/fiabilite-scans
-git submodule update --init
-git -C Kerubiscan_backend checkout fix/fiabilite-scans
-git -C Kerubiscan_frontend checkout fix/fiabilite-scans
+git submodule update --init --recursive
 
-# 2. Sauvegarder la base AVANT la migration
-docker compose exec db pg_dump -U kimia kimia_db > sauvegarde_$(date +%F).sql
+# 4. Renseigner le garde-fou de périmètre en recette (.env)
+echo 'SCAN_ALLOWED_TARGETS="10.0.0.0/24, *.lab.internal"' >> .env   # adaptez aux cibles autorisées
 
-# 3. Reconstruire et relancer. La migration Alembic s'applique au démarrage de l'API.
-docker compose build api celery-worker celery-worker-default celery-beat frontend
-docker compose up -d
+# 5. Reconstruire et relancer (sans l'override). La migration Alembic s'applique au démarrage de l'API.
+docker compose -f docker-compose.yml build
+docker compose -f docker-compose.yml up -d
 
-# 4. Vérifier la migration
-docker compose exec api alembic current          # doit afficher c5d8e1f2a3b4 (head)
-docker compose exec db psql -U kimia -d kimia_db -c "SELECT unnest(enum_range(NULL::scannerengine));"
+# 6. Vérifier la migration et les services
+docker compose -f docker-compose.yml exec api alembic current   # doit afficher c5d8e1f2a3b4 (head)
+docker compose -f docker-compose.yml exec db psql -U kimia -d kimia_db -c "SELECT unnest(enum_range(NULL::scannerengine));"
+docker compose -f docker-compose.yml ps                         # tous Up, dont celery-worker-default
+
+# 7. Reprise d'une base venant de l'ancienne version (scans bloqués, tâches OpenVAS orphelines)
+docker compose -f docker-compose.yml exec celery-worker python -m scripts.reconcile_scans         # lecture seule
+docker compose -f docker-compose.yml exec celery-worker python -m scripts.reconcile_scans --apply # après contrôle
+# (le chien de garde fait de même automatiquement dans les 10 minutes)
 ```
 
-**Image Docker** : elle inclut maintenant Chromium pour le rendu PDF (environ +300 Mo, première construction plus longue). Après le déploiement, testez le bouton « Download PDF » de la page Rapports : si le PDF n'a pas le design du HTML, cherchez `falling back to the legacy PDF layout` dans `docker compose logs api`.
+**Retour arrière** :
+```bash
+git checkout <ancien_commit> && git submodule update --init --recursive
+docker compose -f docker-compose.yml build && docker compose -f docker-compose.yml up -d
+# Si la base pose problème, restaurer la sauvegarde :
+docker compose -f docker-compose.yml exec -T db psql -U kimia -d kimia_db < sauvegarde_XXXX.sql
+```
 
-**Nouveau service** : `celery-worker-default` (tâches courtes). `celery-worker` ne traite plus que les scans (file `scans`). Le nombre de scans en parallèle se règle avec `SCAN_CONCURRENCY` dans `.env` (2 par défaut). Comptez environ 1,5 Go de RAM par scan ZAP.
+**Image Docker** : Chromium pour le rendu PDF (+300 Mo environ, première construction plus longue) ;
+Nuclei et vulners sont désormais figés. Si le build échoue sur le téléchargement de Nuclei, des
+templates ou de vulners, c'est voulu (plus de `|| true` qui masquait l'échec) : corrigez le ref.
+Après déploiement, testez « Download PDF » ; si le design diffère du HTML, cherchez
+`falling back to the legacy PDF layout` dans `docker compose logs api`.
 
-**Rôles** : vérifiez dans Keycloak que les personnes qui lancent des scans ont le rôle *Security Analyst*, *Systems Administrator* ou *Platform Administrator*.
+**Nouveau service** : `celery-worker-default` (tâches courtes). `celery-worker` ne traite que les
+scans. `SCAN_CONCURRENCY` (1 par défaut) règle le nombre de scans en parallèle ; `mem_limit` est
+posé sur les workers et OpenVAS.
+
+**Rôles** : vérifiez dans Keycloak que les personnes qui lancent des scans ont le rôle *Security
+Analyst*, *Systems Administrator* ou *Platform Administrator*.
 
 ---
 

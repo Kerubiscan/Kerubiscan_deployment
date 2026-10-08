@@ -130,3 +130,49 @@ Priorité 2 (résultats exacts) : R8, R9 (fait), R16 (fait), R11, R5, C2/N1.
 Priorité 3 (garde-fou, diagnostic, déploiement test) : R18, R12, R13, R14, R15, R17.
 
 Hors périmètre (avant production, à ne pas aggraver) : S3, ports internes, Vault dev, CORS, TLS, périmètre par société.
+
+---
+
+## 5. Statut final après corrections (lot livré)
+
+Commits backend après la revue : arrêt de scan et des workers, suivi OpenVAS borné, rétention,
+garde-fou de périmètre, feed OpenVAS, image figée, script de reprise, tests. **89 tests passent**
+(+ 1 test de migration ignoré sans PostgreSQL).
+
+| Constat | Statut final | Preuve |
+|---|---|---|
+| R5 découverte target_states | **corrigé** | `tasks._finish_discovery` ; test_discovery_sets_every_target_state |
+| R6 arrêt des workers / routage | **corrigé (arrêt propre)** ; *partiel* pour un crash brutal (couvert par le chien de garde, mais après le seuil de silence) | `base_adapter` registre + `worker_signals.py` ; garde-fou de routage ; tests shutdown/redispatch. **Limitation documentée** : `visibility_timeout=26h` reste nécessaire pour ne pas réexécuter un scan long ; un message réservé par un worker tué brutalement attend ce délai (inhérent à acks_late + Redis). |
+| R7 suivi OpenVAS borné | **corrigé** | `poll_scan_status` (creation_time, fin si clos/supprimé/pause, relances bornées) |
+| R8 purge au démarrage | **corrigé** | `main.py` purge retirée ; `cleanup_old_data` (Beat) ; test |
+| R9 compteur | **corrigé** | `count_scan_findings` (COUNT) ; test_rescan_does_not_double_count_findings |
+| R10 arrêter un scan | **corrigé** | `PUT /scans/{id}/stop` + `stop_scan_task` ; test_stop_scan_revokes_tasks_and_stops_openvas |
+| R11 feed + figée + limite de tâches | **corrigé** (feed, figée) ; *atténué* (limite) | `check_feeds` ; détection de figée (`OPENVAS_STALL_HOURS`). **Limite de tâches simultanées** : non implémentée, mais `SCAN_CONCURRENCY=1` + suppression de la bascule cachée bornent déjà le nombre de tâches GVM. |
+| R12 logs | **corrigé** | rotation 20 Mo × 5 uniforme ; `scan_id` ajouté aux lignes OpenVAS |
+| R13 image | **corrigé** (nuclei figé, templates vérifiés, vulscan retiré) ; *à finaliser* | `Dockerfile`. **À faire avant la production** : épingler `NUCLEI_SHA256` et `VULNERS_REF` sur un commit + checksum. Le build échoue désormais si un ref est invalide. |
+| R14 code monté | **corrigé** | montages déplacés dans `docker-compose.override.yml` |
+| R15 ressources | **corrigé** | `SCAN_CONCURRENCY=1` ; `mem_limit` worker/openvas |
+| R16 (4 points) | **corrigé** | limite douce 23 h, reprise, asset manuel, ZAP redirigé (commit `c356135`) |
+| R17 dépôts/doc | **corrigé (doc)** ; *note* | nombre de tests mis à jour. Le `main` du déploiement pointe backend `074c2b6` à cause de la fusion anticipée de la PR #1 : à régulariser en fusionnant la PR du backend. |
+| R18 périmètre | **corrigé** | `SCAN_ALLOWED_TARGETS` ; tests ; 403 + audit |
+| C2/N1 identifiants sur la ligne de commande | **corrigé** | Nuclei (fichier 0600), ZAP (API locale) ; tests |
+
+### Critères de livraison en recette
+1. Priorité 1 et 2 : aucun « partiel » bloquant. R6 (crash brutal) et R11 (limite de tâches) sont
+   atténués et documentés, pas bloquants.
+2. 89 tests passent (S1, S2, XSS inclus).
+3. **Test de bout en bout du laboratoire : à exécuter par l'équipe** (`scripts/verify_scanner_e2e.py`
+   sur `lab/docker-compose.lab.yml`). Non exécuté dans ce lot (pas de Docker sur le poste de dev).
+4. Recherche de secrets : à lancer par l'équipe (par exemple gitleaks). Les seuls secrets du dépôt
+   sont les **valeurs par défaut** (`kimia_password`, `admin`) et un **mot de passe de test** du
+   laboratoire (`labpass123`) — pas de secret réel. Les secrets par défaut relèvent de S3 (hors lot).
+5. Procédure de déploiement et de retour arrière : `docs/CORRECTIFS_FIABILITE_SCANS.md`.
+
+## 6. Décisions laissées à l'équipe
+- **Profil de vulners 2.x** : le script `vulners` est `intrusive` (balayage HTTP) et `external`
+  (il envoie les produits/versions détectés à vulners.com). Décision de confidentialité : garder
+  `vulners` par défaut, ou le réserver à une policy. Proposition : le laisser actif en interne,
+  le rendre désactivable par policy pour les cibles sensibles.
+- **Durée de conservation** : `AUDIT_RETENTION_DAYS` (90) et `RAW_OUTPUT_RETENTION_DAYS` (30) par défaut.
+- **Concurrence** : `SCAN_CONCURRENCY=1` par défaut (sûr). À augmenter selon la RAM (≈ 1,5–3 Go par scan).
+- **Épinglage des versions** : confirmer `NUCLEI_VERSION`/`VULNERS_REF` et ajouter les checksums.
