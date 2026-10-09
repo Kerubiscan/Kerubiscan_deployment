@@ -27,6 +27,13 @@ services:
   # Apache httpd 2.4.49 — really vulnerable to CVE-2021-41773 (path traversal / RCE)
   apache-vuln:
     image: vulhub/httpd:2.4.49
+    # The image ships "<Directory /> Require all denied", which blocks the path traversal: only
+    # version-based detection (Nmap/vulners) then fires and Nuclei rightly finds nothing.
+    # Grant / (as in the vulnerable setups seen in the wild) so the exploit really works.
+    command:
+      - sh
+      - -c
+      - "sed -i '\\#<Directory />#,\\#</Directory>#s#Require all denied#Require all granted#' /usr/local/apache2/conf/httpd.conf && exec /usr/local/apache2/bin/httpd -DFOREGROUND"
     networks:
       lab-net:
         aliases:
