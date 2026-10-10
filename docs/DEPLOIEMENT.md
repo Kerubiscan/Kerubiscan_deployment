@@ -94,6 +94,31 @@ Au premier démarrage :
 - OpenVAS charge son feed de tests, ce qui peut prendre **plus d'une heure**. Tant que ce n'est
   pas terminé, les scans OpenVAS sont refusés avec le message « Feed NVT absent ».
 
+### Changement d'adresse IP du serveur
+
+La plateforme **ne dépend pas de l'IP du serveur** : le portail et Keycloak utilisent l'adresse
+que le navigateur a appelée. Après un changement d'IP (passage du mode pont au mode NAT, nouvelle
+adresse DHCP, VM déplacée), il n'y a **rien à régénérer ni à reconstruire** : il suffit d'ouvrir
+le portail avec la nouvelle adresse, `http://<nouvelle IP>:9443`.
+
+Conditions :
+- `NEXTAUTH_URL` et `KEYCLOAK_PUBLIC_URL` restent **vides** dans `.env`. Ne les renseigner que pour
+  une adresse publique fixe (nom de domaine, HTTPS derrière un proxy).
+- `BACKEND_API_URL` vaut `http://api:8000` (réseau Docker interne, sans IP).
+- En **NAT avec redirection de ports** (VirtualBox, par exemple), rediriger les ports **avec les
+  mêmes numéros** côté hôte et côté VM : au moins 9443 (portail) et 1990 (Keycloak, appelé sur
+  le même nom d'hôte que le portail), et 9445 pour la documentation de l'API.
+
+**Serveur installé avant cette version** : son `.env` contient encore l'IP en dur. Le mettre à
+jour une seule fois ; les secrets sont conservés et une sauvegarde `.env.bak.*` est créée :
+```bash
+cd /home/user/Kerubiscan_deployment
+git pull && git submodule update --init --recursive
+./install.sh --update-env      # corrige .env, reconstruit et redémarre
+```
+Seul le nom affiché par l'interface web d'OpenVAS (`OPENVAS_HOSTNAME`, port 9392) reprend l'IP
+détectée ; les scans ne l'utilisent pas.
+
 ---
 
 ## 3. Mise à jour
@@ -216,14 +241,14 @@ next-intl 4 (français / anglais), Recharts 3 (graphiques), Tailwind CSS 4, luci
 
 | Variable | Rôle |
 |---|---|
-| `BACKEND_API_URL` | URL de l'API vue par le frontend ; **prise en compte au build** du frontend |
-| `NEXTAUTH_URL`, `NEXTAUTH_SECRET` | Adresse publique du portail et clé de session |
-| `KEYCLOAK_PUBLIC_URL`, `KEYCLOAK_REALM`, `KEYCLOAK_REALM_NAME` | Keycloak vu du navigateur et royaume |
+| `BACKEND_API_URL` | URL de l'API vue par le frontend : `http://api:8000` (réseau Docker interne) ; **prise en compte au build** du frontend |
+| `NEXTAUTH_URL`, `NEXTAUTH_SECRET` | Adresse publique du portail (**vide** : celle qu'utilise le navigateur) et clé de session |
+| `KEYCLOAK_PUBLIC_URL`, `KEYCLOAK_REALM`, `KEYCLOAK_REALM_NAME` | Keycloak vu du navigateur (**vide** : même adresse que le portail, port 1990) et royaume |
 | `FRONTEND_KEYCLOAK_CLIENT_ID` / `_SECRET` | Client Keycloak du frontend |
 | `BACKEND_KEYCLOAK_CLIENT_ID` / `_SECRET` | Client Keycloak du backend |
 | `POSTGRES_URL`, `REDIS_URL` | Accès base et Redis |
 | `PROJECT_NAME`, `VERSION` | Nom et version affichés |
-| `AI_PROVIDER`, `AI_MODEL`, `GEMINI_API_KEY`, `AI_ENDPOINT` | Résumés et remédiations par IA (Gemini ou Ollama) |
+| `AI_PROVIDER`, `AI_MODEL`, `GEMINI_API_KEY`, `AI_ENDPOINT` | Résumés et remédiations par IA (Gemini ou Ollama ; Ollama de l'hôte : `http://host.docker.internal:11434/api/chat`) |
 | `OPENVAS_HOSTNAME`, `OPENVAS_PASSWORD`, `OPENVAS_SKIPSYNC` | Connexion à OpenVAS ; `SKIPSYNC=true` saute la mise à jour du feed |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | Courriels de fin de scan (sans SMTP : envoi simulé dans les logs) |
 | `SCAN_CONCURRENCY` | Nombre de scans exécutés en parallèle par le worker (défaut 1) |
@@ -276,5 +301,6 @@ mise à jour). Le message `already exists` signifie qu'elle est déjà en place.
 | Scan ZAP tué (`Connection reset by peer`) | Mémoire insuffisante | Passer la machine à 10 Go ou plus |
 | « Feed NVT absent » | Feed OpenVAS pas encore chargé | Attendre ; suivre `docker logs -f kerubiscan_deployment-openvas-1` |
 | Une cible du labo est injoignable | Worker recréé, plus relié au réseau du labo | `docker network connect kerubiscan_lab-net kerubiscan_deployment-celery-worker-1` |
-| Le portail reste en chargement | `BACKEND_API_URL` absent au build du frontend | Le corriger dans `.env`, puis `docker compose -f docker-compose.yml build frontend` |
+| Le portail reste en chargement | `BACKEND_API_URL` absent ou faux au build du frontend | `BACKEND_API_URL="http://api:8000"` dans `.env`, puis `docker compose -f docker-compose.yml build frontend` |
+| Portail ou connexion cassés après un changement d'IP | `.env` d'avant cette version, avec l'IP en dur | `./install.sh --update-env` (une seule fois) |
 | Logs d'un scan | — | `docker logs -f kerubiscan_deployment-celery-worker-1` (scans) et `…-celery-worker-default-1` (OpenVAS) |

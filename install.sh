@@ -4,9 +4,14 @@
 # and automatically starts the deployment.
 #
 # Usage:
-#   ./install.sh                   # Detects IP, generates .env, runs build+up
-#   ./install.sh --env-only        # Detects IP, generates .env only
-#   HOST_IP=1.2.3.4 ./install.sh   # Forces a specific IP
+#   ./install.sh                   # Generates .env, runs build+up
+#   ./install.sh --env-only        # Generates .env only
+#   ./install.sh --update-env      # Updates an EXISTING .env so it no longer depends on the IP
+#                                  # (keeps every secret), then rebuilds and restarts
+#   HOST_IP=1.2.3.4 ./install.sh   # Forces the IP shown at the end
+#
+# The platform follows the address the browser uses: after an IP change (bridge -> NAT, DHCP)
+# nothing has to be regenerated. The detected IP is only printed (and used as the OpenVAS UI name).
 
 set -euo pipefail
 
@@ -52,7 +57,43 @@ detect_host_ip() {
 HOST_IP_DETECTED="$(detect_host_ip)"
 echo ">> Detected Host IP : $HOST_IP_DETECTED"
 
-# --- 2. Generate .env from template -----------------------
+# --- 2. Update an existing .env (--update-env) ---------------
+# Older .env files pinned the IP in NEXTAUTH_URL, KEYCLOAK_PUBLIC_URL, BACKEND_API_URL and
+# AI_ENDPOINT: the portal broke as soon as the server changed address.
+
+set_env_value() {   # set_env_value KEY VALUE  (adds the line when missing)
+    local key="$1" value="$2"
+    if grep -q "^${key}=" "$ENV_FILE"; then
+        sed -i "s|^${key}=.*|${key}=\"${value}\"|" "$ENV_FILE"
+    else
+        printf '%s="%s"\n' "$key" "$value" >> "$ENV_FILE"
+    fi
+}
+
+if [[ "${1:-}" == "--update-env" ]]; then
+    if [[ ! -f "$ENV_FILE" ]]; then
+        echo "ERROR: no $ENV_FILE to update in $SCRIPT_DIR (run ./install.sh first)" >&2
+        exit 1
+    fi
+    cp "$ENV_FILE" "$ENV_FILE.bak.$(date +%Y%m%d%H%M%S)"
+    set_env_value NEXTAUTH_URL ""
+    set_env_value KEYCLOAK_PUBLIC_URL ""
+    set_env_value BACKEND_API_URL "http://api:8000"
+    set_env_value OPENVAS_HOSTNAME "$HOST_IP_DETECTED"
+    # Only an Ollama on this host (IP:11434) is rewritten; a remote AI server is kept
+    if grep -qE '^AI_ENDPOINT="?http://[0-9.]+:11434' "$ENV_FILE"; then
+        set_env_value AI_ENDPOINT "http://host.docker.internal:11434/api/chat"
+    fi
+    echo ">> $ENV_FILE updated (backup kept as $ENV_FILE.bak.*): it no longer depends on the IP"
+    echo ">> Rebuilding (the frontend reads BACKEND_API_URL at build time) and restarting..."
+    docker compose -f docker-compose.yml build
+    docker compose -f docker-compose.yml up -d
+    echo ""
+    echo "Portal: http://${HOST_IP_DETECTED}:9443 (or any address that reaches this server)"
+    exit 0
+fi
+
+# --- 3. Generate .env from template -----------------------
 
 if [[ ! -f "$TEMPLATE_FILE" ]]; then
     echo "ERROR: $TEMPLATE_FILE not found in $SCRIPT_DIR" >&2
@@ -69,7 +110,7 @@ fi
 
 echo ">> Generated $ENV_FILE with IP $HOST_IP_DETECTED"
 
-# --- 3. Optional docker-compose launch --------------------------
+# --- 4. Optional docker-compose launch --------------------------
 
 if [[ "${1:-}" == "--env-only" ]]; then
     echo ">> --env-only requested. Stopping here (Docker Compose not launched)."
@@ -77,7 +118,8 @@ if [[ "${1:-}" == "--env-only" ]]; then
 fi
 
 echo ">> Building & launching containers..."
-docker compose up -d --build
+# -f: docker-compose.override.yml is for development only (it mounts the source code)
+docker compose -f docker-compose.yml up -d --build
 
 echo ""
 echo "=== Deployment Complete ==="

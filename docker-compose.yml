@@ -78,6 +78,8 @@ services:
       - openvas
     cap_add:
       - NET_RAW
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   celery-worker-default:
     restart: unless-stopped
@@ -109,6 +111,9 @@ services:
       - db
       - redis
       - openvas
+    # The AI summaries run here: Ollama on the host is reached by name, whatever the host's IP
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   celery-beat:
     restart: unless-stopped
@@ -257,9 +262,12 @@ services:
     environment:
       - BACKEND_API_URL=${BACKEND_API_URL:-http://api:8000}
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-super-secret-key-for-kerubiscan-nextauth}
-      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:9443}
+      # Empty: next-auth uses the address the browser called (AUTH_TRUST_HOST), so an IP change
+      # (bridge -> NAT, DHCP) needs no new .env and no rebuild. Set only for a fixed public URL.
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-}
       - KEYCLOAK_INTERNAL_URL=${KEYCLOAK_INTERNAL_URL:-http://keycloak:8080}
-      - KEYCLOAK_PUBLIC_URL=${KEYCLOAK_PUBLIC_URL:-http://localhost:1990}
+      # Empty: http://<address the browser called>:1990
+      - KEYCLOAK_PUBLIC_URL=${KEYCLOAK_PUBLIC_URL:-}
       - KEYCLOAK_CLIENT_ID=${FRONTEND_KEYCLOAK_CLIENT_ID:-kerubiscan-web}
       - KEYCLOAK_CLIENT_SECRET=${FRONTEND_KEYCLOAK_CLIENT_SECRET:-kerubiscan-web-secret}
       - KEYCLOAK_REALM=${KEYCLOAK_REALM:-kimia}
