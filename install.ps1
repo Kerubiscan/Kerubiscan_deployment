@@ -76,7 +76,8 @@ if ($EnvOnly) {
 }
 
 Write-Host ">> Building & launching containers..." -ForegroundColor Cyan
-docker compose up -d --build
+# -f: docker-compose.override.yml is for development only (it mounts the source code)
+docker compose -f docker-compose.yml up -d --build
 
 Write-Host "`n=== Deployment Complete ===" -ForegroundColor Green
 Write-Host "Frontend : http://${DetectedIp}:9443"
