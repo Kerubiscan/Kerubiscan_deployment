@@ -48,7 +48,9 @@ services:
       - kerubiscan-net
   celery-worker:
     restart: unless-stopped
-    mem_limit: 3g
+    # 6g: room for SCAN_CONCURRENCY=2 parallel ZAP scans (Java + 2 Firefox each). Lower to 3g
+    # if the VM is tight on RAM and set SCAN_CONCURRENCY=1.
+    mem_limit: 6g
     build:
       context: ./Kerubiscan_backend
       dockerfile: Dockerfile
