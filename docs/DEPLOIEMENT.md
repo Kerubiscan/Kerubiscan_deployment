@@ -17,7 +17,7 @@ frontend `88d5eed` (octobre 2026).
 | Ressource | Minimum | Recommandé | Pourquoi |
 |---|---|---|---|
 | Processeur | 4 vCPU | 8 vCPU | OpenVAS, ZAP (Java + 2 navigateurs) et Nuclei tournent en parallèle |
-| Mémoire | 12 Go | 16 Go | Limites fixées : worker de scan 3 Go, OpenVAS 4 Go, worker secondaire 1 Go, plus la base, Keycloak, l'API et le frontend |
+| Mémoire | 12 Go | 16 Go | Limites fixées : worker de scan **6 Go** (2 scans ZAP en parallèle), OpenVAS 4 Go, worker secondaire 1 Go, plus la base, Keycloak, l'API et le frontend. Avec 12 Go, baisser `SCAN_CONCURRENCY` à 1 et le worker à 3 Go |
 | Disque | 100 Go | 150 Go | Images (environ 15 Go), feed OpenVAS, base de données, cache de build. Un build consomme plusieurs Go temporairement |
 | Architecture | x86_64 (amd64) | x86_64 | Nuclei et ZAP sont téléchargés en version Linux amd64 |
 
@@ -251,7 +251,7 @@ next-intl 4 (français / anglais), Recharts 3 (graphiques), Tailwind CSS 4, luci
 | `AI_PROVIDER`, `AI_MODEL`, `GEMINI_API_KEY`, `AI_ENDPOINT` | Résumés et remédiations par IA (Gemini ou Ollama ; Ollama de l'hôte : `http://host.docker.internal:11434/api/chat`) |
 | `OPENVAS_HOSTNAME`, `OPENVAS_PASSWORD`, `OPENVAS_SKIPSYNC` | Connexion à OpenVAS ; `SKIPSYNC=true` saute la mise à jour du feed |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | Courriels de fin de scan (sans SMTP : envoi simulé dans les logs) |
-| `SCAN_CONCURRENCY` | Nombre de scans exécutés en parallèle par le worker (défaut 1) |
+| `SCAN_CONCURRENCY` | Nombre de scans exécutés en parallèle par le worker (défaut **2**). Au-delà de 2, augmenter la RAM et le `mem_limit` du worker ; en cas de mémoire limitée, remettre 1 |
 | `SCAN_ALLOWED_TARGETS` | Périmètre autorisé (IP, réseaux, domaines séparés par des virgules) ; vide = aucune restriction |
 | `OPENVAS_STALL_HOURS` | Délai sans progrès avant qu'une tâche OpenVAS soit déclarée bloquée |
 | `AUDIT_RETENTION_DAYS`, `RAW_OUTPUT_RETENTION_DAYS` | Durée de conservation du journal d'audit et des sorties brutes |
