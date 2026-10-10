@@ -4,9 +4,19 @@ This repository contains the unified deployment architecture for the **Kerubi Vu
 
 ---
 
+> 📘 **Guide complet en français : [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md)** — prérequis de la
+> machine, installation, mise à jour, vérifications, liste de tous les outils embarqués, variables
+> `.env`, durcissement avant la production et dépannage.
+
 ## 📋 Prerequisites
-- Docker Engine & Docker Compose
+- **Machine**: x86_64, 4 vCPU (8 recommended), **12 GB RAM minimum (16 GB recommended)**, 100 GB disk
+- **OS**: Ubuntu Server 22.04 / 24.04 or Debian 12
+- Docker Engine 24+ and **Docker Compose v2** (`docker compose`)
 - Git (with submodule support)
+- Outbound Internet access during the build (Docker Hub, quay.io, Debian, PyPI, npm, GitHub) and
+  during scans (vulners.com, Greenbone feed, AI provider)
+
+See [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md) for the full list of tools and versions.
 
 ---
 
@@ -39,19 +49,24 @@ chmod +x install.sh
 
 Once the script finishes, you can open `.env` and add your `GEMINI_API_KEY` if you want AI-powered remediation features, then restart the containers with `docker compose up -d`.
 
-> For a clean rebuild (recommended after pulling submodule updates):
+> Always pass `-f docker-compose.yml` on a test or production server: `docker-compose.override.yml`
+> is for development only (it mounts the source code into the containers).
 > ```bash
-> docker compose down
-> docker compose build --no-cache
-> docker compose up -d
+> docker compose -f docker-compose.yml build
+> docker compose -f docker-compose.yml up -d
 > ```
 
-### 4. Updating Submodules
-When new backend or frontend changes are pushed, update your local submodules:
+### 3. Updating
+Merge the backend and frontend pull requests first, then the deployment one (it pins both
+submodules). On the server:
 ```bash
-git submodule update --remote --merge
-docker compose up -d --build
+git pull && git submodule update --init --recursive
+docker compose -f docker-compose.yml build
+docker compose -f docker-compose.yml up -d
+docker image prune -f
 ```
+Do not rebuild while a scan is running (the worker is recreated), and never run
+`docker system prune -a` or `docker volume prune`.
 
 ---
 
