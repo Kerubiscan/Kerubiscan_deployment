@@ -58,13 +58,12 @@ Once the script finishes, you can open `.env` and add your `GEMINI_API_KEY` if y
 
 ### 3. Updating
 Merge the backend and frontend pull requests first, then the deployment one (it pins both
-submodules). On the server:
+submodules). On the server, one command:
 ```bash
-git pull && git submodule update --init --recursive
-docker compose -f docker-compose.yml build
-docker compose -f docker-compose.yml up -d
-docker image prune -f
+bash update.sh            # refuses while a scan is running; --force to update anyway
 ```
+It pulls the code and submodules, rebuilds, restarts, re-attaches the worker to the test lab when
+it runs, and removes the replaced images (see docs/DEPLOIEMENT.md, section 3, for the manual steps).
 Do not rebuild while a scan is running (the worker is recreated), and never run
 `docker system prune -a` or `docker volume prune`.
 

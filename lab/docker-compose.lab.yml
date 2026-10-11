@@ -23,6 +23,9 @@ networks:
     name: kerubiscan_lab-net
     internal: true
 
+volumes:
+  lab_certs:
+
 services:
   # Apache httpd 2.4.49 — really vulnerable to CVE-2021-41773 (path traversal / RCE)
   apache-vuln:
@@ -56,4 +59,35 @@ services:
       - PASSWORD_ACCESS=true
     networks:
       - lab-net
+    restart: unless-stopped
+
+  # Self-signed certificate of the shared server, made once (no network: the lab has no Internet)
+  lab-certs:
+    image: alpine/openssl
+    network_mode: none
+    entrypoint: ["sh", "-c"]
+    command:
+      - >-
+        [ -f /certs/lab.crt ] || openssl req -x509 -newkey rsa:2048 -nodes -days 3650
+        -keyout /certs/lab.key -out /certs/lab.crt -subj /CN=lab.internal
+        -addext subjectAltName=DNS:support.lab.internal,DNS:erp.lab.internal,DNS:portal.lab.internal
+    volumes:
+      - lab_certs:/certs
+
+  # "Shared server": several applications on ONE IP, firewall ports, console on 8080 (edge/nginx.conf).
+  # Scan support.lab.internal, erp.lab.internal and portal.lab.internal together (docs/DEPLOIEMENT.md).
+  edge:
+    image: nginx:1.27-alpine
+    depends_on:
+      lab-certs:
+        condition: service_completed_successfully
+    volumes:
+      - ./edge/nginx.conf:/etc/nginx/nginx.conf:ro
+      - lab_certs:/certs:ro
+    networks:
+      lab-net:
+        aliases:
+          - support.lab.internal   # -> Juice Shop
+          - erp.lab.internal       # -> Apache 2.4.49
+          - portal.lab.internal    # -> error 500
     restart: unless-stopped
