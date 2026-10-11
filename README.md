@@ -9,7 +9,7 @@ This repository contains the unified deployment architecture for the **Kerubi Vu
 > `.env`, durcissement avant la production et dépannage.
 
 ## 📋 Prerequisites
-- **Machine**: x86_64, 4 vCPU (8 recommended), **12 GB RAM minimum (16 GB recommended)**, 100 GB disk
+- **Machine**: x86_64, 4 vCPU (8 recommended), **10 GB RAM minimum (16 GB recommended)**, 100 GB disk
 - **OS**: Ubuntu Server 22.04 / 24.04 or Debian 12
 - Docker Engine 24+ and **Docker Compose v2** (`docker compose`)
 - Git (with submodule support)
