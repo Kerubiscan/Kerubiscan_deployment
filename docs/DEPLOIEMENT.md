@@ -124,10 +124,20 @@ détectée ; les scans ne l'utilisent pas.
 ## 3. Mise à jour
 
 Sur un poste avec `gh`, fusionner les pull requests dans l'ordre **backend, frontend, puis
-déploiement** (le dépôt de déploiement fixe les versions des deux autres). Puis, sur le serveur :
+déploiement** (le dépôt de déploiement fixe les versions des deux autres). Puis, sur le serveur,
+**une seule commande** :
 
 ```bash
 cd /home/user/Kerubiscan_deployment
+bash update.sh
+```
+
+`update.sh` refuse de tourner pendant un scan (il le couperait) ; `bash update.sh --force` passe
+outre. Il enchaîne : `git pull`, mise à jour des sous-modules (versions affichées), build, `up -d`,
+reconnexion du worker au labo s'il tourne, suppression des images remplacées. Il ne touche ni aux
+volumes ni aux images étiquetées (retour arrière). Les mêmes étapes à la main :
+
+```bash
 git pull && git submodule update --init --recursive
 git submodule status                       # versions attendues du backend et du frontend
 docker compose -f docker-compose.yml build
@@ -233,6 +243,22 @@ next-intl 4 (français / anglais), Recharts 3 (graphiques), Tailwind CSS 4, luci
 | OWASP ZAP | application web (URL) | Failles applicatives : injection SQL, XSS, redirections… |
 | OpenVAS | IP, réseau, nom d'hôte | Tests actifs réseau et système, scores CVSS, preuves d'exploitation |
 
+### Durée de scan
+
+Choisie à la création (ou à la modification) d'un scan ZAP, Nmap ou Nuclei. **Standard** est le
+réglage par défaut et le comportement de tous les scans existants. Une plage de ports définie par
+une politique reste prioritaire. Sans effet sur OpenVAS et sur la découverte.
+
+| Durée | OWASP ZAP (par site) | Nmap, Nuclei |
+|---|---|---|
+| Rapide | ~30 min au plus : exploration 5 + 3 min, attaques 20 min | 1 000 ports les plus courants |
+| Standard | ~2 h au plus : 15 + 10 min, attaques 90 min ; ports web courants | tous les ports |
+| Approfondi | ~5 h au plus : 30 + 20 min, attaques 240 min ; **tous les ports** (application sur un port inhabituel) | tous les ports |
+
+Pour un lot de noms de domaine pointant vers le même serveur, ZAP ne retient que les ports qui
+répondent vraiment en HTTP, n'explore pas `http://` quand il ne fait que rediriger vers `https://`,
+et ne teste qu'une fois les services du serveur lui-même (ports autres que 80/443).
+
 ---
 
 ## 6. Variables d'environnement (`.env`)
@@ -280,15 +306,44 @@ dates des rapports et du tableau de bord.
 
 `lab/docker-compose.lab.yml` lance des cibles **volontairement vulnérables** sur un réseau Docker
 isolé, sans accès Internet et sans port publié : Apache 2.4.49 (`app.lab.internal`, CVE-2021-41773),
-OWASP Juice Shop et un serveur SSH avec un compte de test. Réservé à une machine de test.
+OWASP Juice Shop, un serveur SSH avec un compte de test, et un **« serveur partagé »** (`edge`) qui
+reproduit le serveur vu devant kimia-technologies.com : plusieurs domaines sur une seule IP
+(`support.lab.internal` → Juice Shop, `erp.lab.internal` → Apache, `portal.lab.internal` → erreur
+500), `http://` qui redirige vers `https://`, une console avec page de connexion sur 8080, une API
+sur 8443, et des ports de pare-feu qui acceptent puis coupent (8000, 8008, 8888). Réservé à une
+machine de test.
 
 ```bash
 docker compose -f lab/docker-compose.lab.yml up -d
 docker network connect kerubiscan_lab-net kerubiscan_deployment-celery-worker-1
 docker network connect kerubiscan_lab-net kerubiscan_deployment-openvas-1
 ```
-La connexion du worker est à refaire **après chaque recréation** du conteneur (donc après chaque
-mise à jour). Le message `already exists` signifie qu'elle est déjà en place.
+La connexion du worker est à refaire **après chaque recréation** du conteneur (`update.sh` le fait).
+Le message `already exists` signifie qu'elle est déjà en place.
+
+Contrôle du serveur partagé (configuration nginx et réponses attendues) :
+```bash
+docker compose -f lab/docker-compose.lab.yml exec edge nginx -t
+W=$(docker compose -f docker-compose.yml ps -q celery-worker)
+docker exec $W python -c "
+import requests, urllib3; urllib3.disable_warnings()
+for u in ['http://support.lab.internal', 'https://support.lab.internal', 'https://erp.lab.internal',
+          'https://portal.lab.internal', 'http://support.lab.internal:8080', 'https://support.lab.internal:8443']:
+    r = requests.get(u, verify=False, allow_redirects=False, timeout=10)
+    print(r.status_code, u, r.headers.get('Location', ''))"
+```
+Attendu : 301 (vers `https://`), 200, 200, 500, 307 (`/login.html`), 405.
+
+**Validation d'un lot réaliste** : dans le portail, *Nouveau scan* → *Application Scan*, moteur
+**OWASP ZAP**, durée **Rapide**, cibles `support.lab.internal`, `erp.lab.internal`,
+`portal.lab.internal` (une par ligne). Puis :
+```bash
+docker logs --since 10m $(docker compose -f docker-compose.yml ps -q celery-worker) 2>&1 | grep -iE "depth=|Phase 1|Web check|Phase 2|AJAX" | cut -c1-200
+```
+Attendu : `depth=RAPIDE` ; les ports 8000, 8008 et 8888 écartés (`gives no HTTP answer`) ;
+`http://…` écarté au profit de `https://…` ; les ports 8080 et 8443 testés avec **un seul** des
+trois domaines (`is scanned with … skipped` pour les deux autres) ; deux domaines à la fois, le
+second attendant la fin de l'exploration AJAX du premier. Le bouton ■ doit tout arrêter d'un coup.
 
 ---
 
