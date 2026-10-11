@@ -85,13 +85,14 @@ if [[ "${1:-}" == "--update-env" ]]; then
         set_env_value AI_ENDPOINT "http://host.docker.internal:11434/api/chat"
     fi
     # Scans run in parallel by the worker (--concurrency). Older .env files have no such line, so
-    # the worker stayed at 1. Two ZAP scans need about 12 GB of RAM: 2 from there, else 1.
+    # the worker stayed at 1. Two ZAP scans run on a 10 GB server (one browser exploration at a
+    # time): 2 from there (a 10 GB VM reports about 9.7 GB), else 1.
     # Only added when missing: a value chosen by hand is kept.
     if ! grep -q '^SCAN_CONCURRENCY=' "$ENV_FILE"; then
         mem_mb=$(awk '/^MemTotal:/ {printf "%d", $2 / 1024}' /proc/meminfo 2>/dev/null || echo 0)
-        if (( mem_mb >= 11000 )); then concurrency=2; else concurrency=1; fi
+        if (( mem_mb >= 9000 )); then concurrency=2; else concurrency=1; fi
         set_env_value SCAN_CONCURRENCY "$concurrency"
-        echo ">> SCAN_CONCURRENCY=$concurrency (RAM: $((mem_mb / 1024)) GB; 2 parallel scans need 12 GB)"
+        echo ">> SCAN_CONCURRENCY=$concurrency (RAM: $((mem_mb / 1024)) GB; 2 parallel scans need 10 GB)"
     fi
     echo ">> $ENV_FILE updated (backup kept as $ENV_FILE.bak.*): it no longer depends on the IP"
     echo ">> Rebuilding (the frontend reads BACKEND_API_URL at build time) and restarting..."
