@@ -251,7 +251,7 @@ next-intl 4 (français / anglais), Recharts 3 (graphiques), Tailwind CSS 4, luci
 | `AI_PROVIDER`, `AI_MODEL`, `GEMINI_API_KEY`, `AI_ENDPOINT` | Résumés et remédiations par IA (Gemini ou Ollama ; Ollama de l'hôte : `http://host.docker.internal:11434/api/chat`) |
 | `OPENVAS_HOSTNAME`, `OPENVAS_PASSWORD`, `OPENVAS_SKIPSYNC` | Connexion à OpenVAS ; `SKIPSYNC=true` saute la mise à jour du feed |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | Courriels de fin de scan (sans SMTP : envoi simulé dans les logs) |
-| `SCAN_CONCURRENCY` | Nombre de scans exécutés en parallèle par le worker (défaut **2**). Au-delà de 2, augmenter la RAM et le `mem_limit` du worker ; en cas de mémoire limitée, remettre 1 |
+| `SCAN_CONCURRENCY` | Nombre de scans exécutés en parallèle par le worker (défaut **2**). Au-delà de 2, augmenter la RAM et le `mem_limit` du worker ; en cas de mémoire limitée, remettre 1. Absente d'un ancien `.env` (le worker restait alors à 1) : `./install.sh --update-env` l'ajoute, à **2 si le serveur a au moins 12 Go de RAM**, sinon 1 ; une valeur déjà présente est conservée |
 | `SCAN_ALLOWED_TARGETS` | Périmètre autorisé (IP, réseaux, domaines séparés par des virgules) ; vide = aucune restriction |
 | `OPENVAS_STALL_HOURS` | Délai sans progrès avant qu'une tâche OpenVAS soit déclarée bloquée |
 | `AUDIT_RETENTION_DAYS`, `RAW_OUTPUT_RETENTION_DAYS` | Durée de conservation du journal d'audit et des sorties brutes |
